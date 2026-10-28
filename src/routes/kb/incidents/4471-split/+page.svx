@@ -1,0 +1,72 @@
+---
+layout: runbook
+title: '#4471 split · three problems, not one'
+owner: Magdalena Dusza
+status: open
+reviewed: 2026-10-28
+signature: v1.eyJzdWIiOiIxNDM0IiwiYXVkIjoiY2hhbGxlbmdlOndoYXQtaXQtc2hvd3MiLCJpYXQiOjE3OTMyMjY0MTQsImV4cCI6MTc5MzMxMjgxNH0.RF7ZHhIAhaYTKs2lI4flUylziF_GQrDOYs3hRwMe43U
+---
+
+<script>
+  import SplitTable from '#lib/kb/SplitTable.svelte';
+  import Callout from '#lib/kb/Callout.svelte';
+  import RenderStamp from '#lib/kb/RenderStamp.svelte';
+
+  const repo = 'https://github.com/magda-dusza/03-mega-dev-what-it-shows/issues';
+  const tickets = { parser: `${repo}/1`, hint: `${repo}/2`, 'one-day': `${repo}/3` };
+</script>
+
+[#4471](/kb/incidents/4471) is marked known: one bug, one fix queued. Its reports hold three
+problems. The queued parser fix closes the first. The other two stay open after it ships.
+
+<Callout kind="warn">
+Do not close #4471's reports when the parser fix ships. Close each report against the ticket of
+its own problem below.
+</Callout>
+
+## The problems in #4471
+
+<SplitTable ticket={4471} {tickets} />
+
+Counts are built from `reports-4471.json` at render time, one report per id: the export pages
+overlap, so some reports come twice. A report belongs to a problem by **its tenant and how it came
+in** (`causes.ts`, `split.ts`), not by intake's tag. Intake guesses from the reporter's browser,
+and a browser set to `en-US` says nothing about the tenant's date order.
+
+## 1 · The parser reads day-first dates month first
+
+Every tenant in #4471 writes the day first. The shared parser reads month first, so 7 April
+becomes 4 July. Any date with a day of 12 or less flips; a day above 12 cannot be a month, so
+those dates survive. This is the fix already queued.
+
+## 2 · booking-v3 tells day-first tenants to type month first
+
+booking-v3 prints `MM/DD/YYYY` under its date field. On a day-first tenant (`alder.physio`,
+`copper.studio`, `pale.harbour`) people type what the hint says, and the form reads it the
+tenant's way. The result looks the same as problem 1: day and month swapped. **The parser fix does
+not touch it.** The fix is the hint, in the form: print the tenant's own order. booking-v2 prints
+`DD/MM/YYYY` and is not affected. Only reports sent **through the booking-v3 form** belong here;
+the same tenants' app and email reports are problem 1.
+
+## 3 · Dates move by one day
+
+These reports are not a swap. The invite and the calendar disagree by exactly one day: 12 May
+shows as 11 May, 6 October as Monday 5 October, one attendee in Lisbon gets Tuesday and one in
+Toronto gets Monday, an invite arrives before the booking was made, every booking in June is a
+day off. That is a time zone or daylight-saving shift, not a date order. The desk noted these
+reports itself (`desk-notes.json`, `oneDayMove`), then filed them under problem 1 by tenant.
+Neither fix moves them back.
+
+## How we got one ticket
+
+[Decision 0001](/kb/decisions/0001-dedupe-by-subject) merges on subject line, and every one of
+these reports says some version of "wrong date". Same subject is not same cause. The
+[triage explorer](/kb/triage/dedupe) shows it: same subject, different tenant gives different
+causes.
+
+## Lessons
+
+- A ticket count is not a bug count. Split by cause before you mark a big ticket known.
+- Read the desk's own notes: the third problem was already written down.
+
+<RenderStamp {signature} />
